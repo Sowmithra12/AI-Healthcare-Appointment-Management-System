@@ -1,286 +1,237 @@
-const bookingAgent =
-  require(
-    "../agents/bookingAgent"
-  );
+const healthcareGraph =
+  require("../graph/healthcareGraph");
 
 const User =
-  require(
-    "../models/User"
-  );
+  require("../models/User");
 
-const rescheduleAgent =
-require(
-  "../agents/rescheduleAgent"
-);
+const Conversation =
+require("../models/Conversation");
 
-const cancelAgent =
-require(
-  "../agents/cancelAgent"
-);
+async function saveMessage(
 
-const queueAgent =
-require(
-  "../agents/queueAgent"
-);
+    patientId,
 
-const doctorRecommendationAgent =
-require(
-  "../agents/doctorRecommendationAgent"
-);
+    sender,
 
-const bookingChat =
-  async (req, res) => {
+    text
 
-    try {
+) {
 
-      console.log(
-        "REQUEST BODY:",
-        req.body
-      );
+    // Don't save empty or invalid messages
+    if (!patientId || !sender || !text || text.trim() === "") {
+        return;
+    }
 
-      const {
-        message,
-        state,
-        patientId,
-      } = req.body;
+    let conversation =
+    await Conversation.findOne({
 
-      const patient =
-        await User.findById(
-          patientId
-        );
+        patientId
 
-      if (!patient) {
+    });
 
-        return res.status(404).json({
-          message:
-            "Patient not found",
+    if (!conversation) {
+
+        conversation =
+        await Conversation.create({
+
+            patientId,
+
+            messages: []
+
         });
 
-      }
+    }
 
-      console.log(
-        "PATIENT:",
-        patient
-      );
+    conversation.messages.push({
 
-const lower =
-  message.toLowerCase();
+        sender,
 
-// CANCEL FLOW
-if (
+        text: text.trim()
 
-  lower.includes("cancel")
+    });
 
-  ||
-
-  state?.flow === "cancel"
-
-) {
-
-  const response =
-    await cancelAgent(
-      message,
-      state,
-      patient
-    );
-
-  return res.json(
-    response
-  );
+    await conversation.save();
 
 }
 
-// RESCHEDULE FLOW
-if (
+const bookingChat =
+async (req, res) => {
 
-  state?.flow === "reschedule" ||
+  try {
 
-  lower.includes("busy") ||
+    console.log("REQUEST BODY:");
+    console.log(req.body);
 
-  lower.includes("reschedule") ||
+    const {
 
-  lower.includes("can't come") ||
+      message: rawMessage,
 
-  lower.includes("cannot attend") ||
+      state = {},
 
-  lower.includes("cannot make it") ||
+      patientId
 
-  lower.includes("can you reschedule") ||
+    } = req.body;
 
-  lower.includes("not available") ||
+    const message =
+      typeof rawMessage === "string"
+        ? rawMessage.trim()
+        : "";
 
-  lower.includes("cannot come")
+    if (!message) {
 
-) {
+      return res.status(400).json({
 
-  const response =
-    await rescheduleAgent(
-      message,
-      state,
-      patient
-    );
-  if (
-  response.action ===
-  "REDIRECT_TO_CANCEL"
-) {
-
-  const cancelResponse =
-    await cancelAgent(
-      "cancel",
-      {},
-      patient
-    );
-
-  return res.json(
-    cancelResponse
-  );
-
-}
-
-  return res.json(
-    response
-  );
-
-}
-
-//QUEUE FLOW
-if (
-
-  state?.flow === "queue"
-
-  ||
-
-  lower.includes("queue")
-
-  ||
-
-  lower.includes("turn")
-
-  ||
-
-  lower.includes("position")
-
-  ||
-
-  lower.includes("waitlist")
-
-  ||
-
-  lower.includes("status")
-
-) {
-
-  console.log(
-    "QUEUE ROUTE HIT"
-  );
-
-  const response =
-    await queueAgent(
-      message,
-      state,
-      patient
-    );
-
-  console.log(
-    "QUEUE RESPONSE:",
-    response
-  );
-
-  return res.json(
-    response
-  );
-
-}
-
-if (
-
-  lower.includes("pain")
-
-  ||
-
-  lower.includes("headache")
-
-  ||
-
-  lower.includes("fever")
-
-  ||
-
-  lower.includes("rash")
-
-  ||
-
-  lower.includes("itching")
-
-  ||
-
-  lower.includes("chest")
-
-  ||
-
-  lower.includes("skin")
-
-  ||
-
-  lower.includes("dizzy")
-
-  ||
-
-  lower.includes("migraine")
-
-  ||
-
-  lower.includes("joint")
-
-  ||
-
-  lower.includes("knee")
-
-  ||
-
-  lower.includes("back pain")
-
-) {
-
-  const response =
-    await doctorRecommendationAgent(
-      message
-    );
-
-  return res.json(
-    response
-  );
-
-}
-
-// BOOKING FLOW
-const response =
-  await bookingAgent(
-    message,
-    state,
-    patient
-  );
-
-return res.json(
-  response
-);
-    } catch (error) {
-
-      console.log(
-        "AGENT ERROR:"
-      );
-
-      console.log(error);
-
-      res.status(500).json({
         message:
-          error.message,
+          "Message is required."
+
       });
 
     }
 
-  };
+    const patient =
+      await User.findById(
+        patientId
+      );
+
+    if (!patient) {
+
+      return res.status(404).json({
+
+        message:
+          "Patient not found"
+
+      });
+
+    }
+    await saveMessage(
+
+    patientId,
+
+    "user",
+
+    message
+
+);
+
+    console.log("PATIENT:");
+    console.log(patient);
+
+    console.log("\n========================");
+    console.log("STARTING LANGGRAPH");
+    console.log("========================");
+
+    const result =
+      await healthcareGraph.invoke({
+
+        message,
+
+        patient,
+
+        state
+
+      });
+
+     let aiMessage = result.reply;
+
+if (!aiMessage) {
+
+    switch (result.action) {
+
+        case "SHOW_DOCTORS":
+            aiMessage = "Available doctors";
+            break;
+
+        case "SHOW_RECOMMENDED_DOCTORS":
+            aiMessage =
+                `Recommended Specialization: ${result.specialization}`;
+            break;
+
+        case "SHOW_SLOTS":
+            aiMessage = "Available slots";
+            break;
+
+        case "SHOW_APPOINTMENTS":
+            aiMessage = "Select an appointment";
+            break;
+
+        case "SHOW_CANCEL_APPOINTMENTS":
+            aiMessage = "Select an appointment to cancel";
+            break;
+
+        case "SHOW_RESCHEDULE_SLOTS":
+            aiMessage = "Select a new slot";
+            break;
+
+        default:
+            aiMessage = result.action;
+    }
+
+}
+
+await saveMessage(
+    patientId,
+    "ai",
+    aiMessage
+);
+
+    console.log("========================");
+    console.log("LANGGRAPH FINISHED");
+    console.log("========================");
+
+    console.log("GRAPH RESULT:");
+    console.dir(result, {
+      depth: null
+    });
+
+return res.json({
+
+    action: result.action,
+
+    reply: result.reply,
+
+    state: result.state || {},
+
+    specialization:
+        result.specialization || "",
+
+    doctors:
+        result.doctors || [],
+
+    slots:
+        result.slots || [],
+
+    appointments:
+        result.appointments || [],
+
+    specializations:
+        result.specializations || [],
+
+    appointment:
+        result.appointment || null
+
+});
+
+  }
+
+  catch (error) {
+
+    console.log("AGENT ERROR:");
+
+    console.log(error);
+
+    return res.status(500).json({
+
+      message:
+        error.message
+
+    });
+
+  }
+
+};
 
 module.exports = {
-  bookingChat,
+
+  bookingChat
+
 };

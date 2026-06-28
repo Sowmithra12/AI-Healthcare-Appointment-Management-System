@@ -11,6 +11,21 @@ const doctorSchema =
       type: String,
       required: true,
     },
+    availabilityStatus: {
+
+    type: String,
+
+    enum: [
+
+        "AVAILABLE",
+
+        "ABSENT"
+
+    ],
+
+    default: "AVAILABLE"
+
+},
 
     availableSlots: [
       String,

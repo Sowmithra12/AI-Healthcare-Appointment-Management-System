@@ -150,11 +150,18 @@ function BookAppointment() {
         );
 
       const appointmentData = {
-        ...formData,
 
-        patientId:
-          user._id,
-      };
+  ...formData,
+
+  patientId:
+    user._id,
+
+  appointmentDateTime:
+    new Date(
+      formData.appointmentSlot
+    )
+
+};
 
       console.log(
         "BOOKING DATA:"

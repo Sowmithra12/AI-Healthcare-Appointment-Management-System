@@ -28,17 +28,29 @@ const createAppointment =
       } = req.body;
 
       const appointment =
-        await Appointment.create({
-          patientId,
-          patientName,
-          phoneNumber,
-          age,
-          doctorName,
-          specialization,
-          appointmentSlot,
-          email:patient.email,
-          status: "BOOKED",
-        });
+  await Appointment.create({
+
+    patientId,
+
+    patientName,
+
+    phoneNumber,
+
+    age,
+
+    doctorName,
+
+    specialization,
+
+    appointmentSlot,
+
+    appointmentDate:
+      appointmentDateTime,
+
+    status:
+      "BOOKED"
+
+  });
 
 const existingQueue =
   await Queue.findOne({

@@ -21,6 +21,22 @@ function CurrentAppointmentCard() {
 
     fetchAppointment();
 
+    const refreshCurrent = () => {
+      fetchAppointment();
+    };
+
+    window.addEventListener(
+      "appointmentUpdated",
+      refreshCurrent
+    );
+
+    return () => {
+      window.removeEventListener(
+        "appointmentUpdated",
+        refreshCurrent
+      );
+    };
+
   }, []);
 
   const fetchAppointment =

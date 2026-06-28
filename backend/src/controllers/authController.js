@@ -55,11 +55,56 @@ const registerUser = async (req, res) => {
 // LOGIN USER
 const loginUser = async (req, res) => {
   try {
-    const { email, password } =
-      req.body;
+    const {
 
-    const user =
-      await User.findOne({ email });
+  email,
+
+  password,
+
+  role
+
+} = req.body;
+
+// ===========================
+// HARDCODED ADMIN LOGIN
+// ===========================
+
+if (
+
+  role === "admin" &&
+
+  email === "admin@gmail.com" &&
+
+  password === "admin"
+
+) {
+
+  return res.json({
+
+    _id: "admin",
+
+    name: "System Administrator",
+
+    email: "admin@gmail.com",
+
+    role: "admin",
+
+    token: "admin-token"
+
+  });
+
+}
+
+// ===========================
+// PATIENT / DOCTOR LOGIN
+// ===========================
+
+const user =
+  await User.findOne({
+
+    email
+
+  });
 
     if (
       user &&

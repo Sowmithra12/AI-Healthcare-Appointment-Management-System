@@ -1,24 +1,37 @@
-const ollama =
-  require("ollama").default;
+const askLLM =
+require("./src/services/ollamaService");
 
-async function test() {
+(async () => {
 
-  const response =
-    await ollama.chat({
-      model: "qwen3:4b",
-      messages: [
-        {
-          role: "user",
-          content:
-            "Say hello",
-        },
-      ],
-    });
+  console.log("START");
 
-  console.log(
-    response.message.content
-  );
+  try {
 
-}
+    console.log(
+      "CALLING LLM..."
+    );
 
-test();
+    const result =
+      await askLLM(
+        "Say hello"
+      );
+
+    console.log(
+      "RESULT:"
+    );
+
+    console.log(result);
+
+  }
+
+  catch (err) {
+
+    console.log(
+      "ERROR:"
+    );
+
+    console.log(err);
+
+  }
+
+})();

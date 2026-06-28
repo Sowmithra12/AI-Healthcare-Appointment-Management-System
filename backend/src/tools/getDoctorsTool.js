@@ -1,22 +1,25 @@
 const User =
-  require("../models/User");
+require("../models/User");
 
 const getDoctorsBySpecialization =
-  async (
-    specialization
-  ) => {
+async (specialization) => {
 
     const doctors =
-      await User.find({
+    await User.find({
+
         role: "doctor",
-        specialization,
-      }).select(
-        "name specialization"
-      );
+
+        specialization
+
+    }).select(
+
+        "name specialization availabilityStatus"
+
+    );
 
     return doctors;
 
-  };
+};
 
 module.exports =
-  getDoctorsBySpecialization;
+getDoctorsBySpecialization;

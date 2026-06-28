@@ -1,10 +1,14 @@
+const askLLM =
+  require("../services/ollamaService");
+
 const Queue =
   require("../models/Queue");
 
 const Appointment =
-  require(
-    "../models/Appointment"
-  );
+  require("../models/Appointment");
+
+const mongoose =
+  require("mongoose");
 
 async function queueAgent(
   message,
@@ -12,131 +16,254 @@ async function queueAgent(
   patient
 ) {
 
-  console.log(
-    "QUEUE AGENT CALLED"
-  );
+  try {
 
-  console.log(
-    "PATIENT ID:",
-    patient._id
-  );
+    console.log("QUEUE AGENT");
 
-  const appointments =
-  await Appointment.find({
+    // =====================
+    // STEP 1
+    // UNDERSTAND USER QUERY
+    // =====================
 
-    patientId:
-      patient._id,
+    if (!state.step) {
 
-    status: {
-      $in: [
-        "BOOKED",
-        "RESCHEDULED"
-      ]
-    }
+      const prompt = `
 
-  });
+You are a Healthcare Queue Agent.
 
-if (
+Patient message:
 
-  appointments.length > 1
+"${message}"
 
-  &&
+Classify the intent.
 
-  !(
+Return ONLY JSON.
 
-    state?.flow === "queue"
+Example:
 
-    &&
-
-    state?.step ===
-      "SELECT_APPOINTMENT"
-
-  )
-
-) {
-
-  return {
-
-    action:
-      "SELECT_QUEUE_APPOINTMENT",
-
-    appointments,
-
-    state: {
-
-      flow:
-        "queue",
-
-      step:
-        "SELECT_APPOINTMENT"
-
-    }
-
-  };
-
+{
+  "intent":"QUEUE_STATUS"
 }
 
-  const queue =
-    await Queue.findOne({
-      patientId:
-        patient._id
-    });
+`;
 
-    const doctorQueue =
-  await Queue.find({
+      const llmResponse =
+        await askLLM(prompt);
 
-    doctorName:
-      queue.doctorName,
+      const cleaned =
+        llmResponse
+          .replace(/```json/g, "")
+          .replace(/```/g, "")
+          .trim();
 
-    status: "WAITING"
+      const result =
+        JSON.parse(cleaned);
 
-  })
-  .sort({
-    createdAt: 1
-  });
+      if (
+        result.intent !==
+        "QUEUE_STATUS"
+      ) {
 
+        return {
 
-const actualPosition =
-  doctorQueue.findIndex(
+          action:
+            "UNKNOWN",
 
-    q =>
-      q.patientId.toString() ===
-      patient._id.toString()
+          reply:
+            "I could not understand your queue request."
 
-  ) + 1;
-  console.log(
-    "QUEUE FOUND:",
-    queue
-  );
+        };
 
-  if (!queue) {
+      }
+
+      const appointments =
+        await Appointment.find({
+
+          patientId:
+            patient._id,
+
+          status: {
+            $in: [
+              "BOOKED",
+              "RESCHEDULED"
+            ]
+          }
+
+        });
+
+      if (
+        appointments.length === 0
+      ) {
+
+        return {
+
+          action:
+            "NO_QUEUE",
+
+          reply:
+            "You have no active appointments."
+
+        };
+
+      }
+
+      // Multiple appointments
+
+      if (
+        appointments.length > 1
+      ) {
+
+        return {
+
+          action:
+            "SELECT_QUEUE_APPOINTMENT",
+
+          appointments,
+
+          state: {
+
+            flow:
+              "queue",
+
+            step:
+              "SELECT_APPOINTMENT"
+
+          }
+
+        };
+
+      }
+
+      // Single appointment
+
+      return await getQueueStatus(
+
+        appointments[0],
+
+        patient,
+
+        message
+
+      );
+
+    }
+
+    // =====================
+    // STEP 2
+    // USER SELECTS APPOINTMENT
+    // =====================
+
+    if (
+
+      state.flow === "queue"
+
+      &&
+
+      state.step ===
+        "SELECT_APPOINTMENT"
+
+    ) {
+
+      if (
+
+        !mongoose.Types.ObjectId.isValid(
+          message
+        )
+
+      ) {
+
+        return {
+
+          action:
+            "ERROR",
+
+          reply:
+            "Please select an appointment from the list."
+
+        };
+
+      }
+
+      const appointment =
+        await Appointment.findOne({
+
+          _id:
+            message,
+
+          patientId:
+            patient._id
+
+        });
+
+      if (!appointment) {
+
+        return {
+
+          action:
+            "ERROR",
+
+          reply:
+            "Appointment not found."
+
+        };
+
+      }
+
+      return await getQueueStatus(
+
+        appointment,
+
+        patient,
+
+        "What is my queue status?"
+
+      );
+
+    }
 
     return {
 
       action:
-        "NO_QUEUE",
+        "UNKNOWN",
 
       reply:
-        "You are not currently in any queue."
+        "Unable to process queue request."
 
     };
 
   }
 
-  if (
+  catch (error) {
 
-  state.flow === "queue"
-
-  &&
-
-  state.step === "SELECT_APPOINTMENT"
-
-) {
-
-  const appointment =
-    await Appointment.findById(
-      message
+    console.log(
+      "QUEUE AGENT ERROR:"
     );
+
+    console.log(error);
+
+    return {
+
+      action:
+        "ERROR",
+
+      reply:
+        "Something went wrong while checking queue."
+
+    };
+
+  }
+
+}
+
+// =====================
+// TOOL EXECUTION
+// =====================
+
+async function getQueueStatus(
+  appointment,
+  patient,
+  originalMessage
+) {
 
   const queue =
     await Queue.findOne({
@@ -157,10 +284,10 @@ const actualPosition =
     return {
 
       action:
-        "QUEUE_STATUS",
+        "NO_QUEUE",
 
       reply:
-        "No active queue found for this appointment."
+        `No active queue found for ${appointment.doctorName}.`
 
     };
 
@@ -188,26 +315,45 @@ const actualPosition =
 
     ) + 1;
 
-  return {
+  const patientsAhead =
+    position - 1;
 
-    action:
-      "QUEUE_STATUS",
-
-    reply:
-      `You are #${position} in the queue for ${appointment.doctorName}.`
-
-  };
-
-}
+  // =====================
+  // LLM RESPONSE
+  // =====================
 
   return {
 
-    action:
-      "QUEUE_STATUS",
+  action: "QUEUE_STATUS",
 
-    reply:
-  `You are #${actualPosition} in the queue.`
-  };
+  reply:
+    `Queue Status
+
+Doctor: ${appointment.doctorName}
+
+Appointment Slot: ${appointment.appointmentSlot}
+
+Current Position: ${position}
+
+Patients Ahead: ${patientsAhead}`,
+
+  queueInfo: {
+
+    doctorName:
+      appointment.doctorName,
+
+    slot:
+      appointment.appointmentSlot,
+
+    position,
+
+    patientsAhead
+
+  },
+
+  state: {}
+
+};
 
 }
 

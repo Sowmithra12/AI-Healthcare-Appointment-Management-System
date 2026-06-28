@@ -2,11 +2,11 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 import CurrentAppointmentCard from "../../components/dashboard/CurrentAppointmentCard";
-import QueueCard from "../../components/dashboard/QueueCard";
 import AppointmentsListCard from "../../components/dashboard/AppointmentsListCard";
 import BookAppointmentButton from "../../components/dashboard/BookAppointmentButton";
 import ChatBox from "../../components/ai/ChatBox";
 import AppointmentHistoryCard from "../../components/dashboard/AppointmentHistoryCard";
+import NotificationCard from "../../components/dashboard/NotificationCard";
 
 function PatientDashboard() {
 
@@ -86,8 +86,8 @@ function PatientDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
           <CurrentAppointmentCard />
-
-          <QueueCard />
+          
+        <NotificationCard />
 
         </div>
 
@@ -99,13 +99,10 @@ function PatientDashboard() {
 
         <AppointmentHistoryCard />
 
-        {/* BOOK APPOINTMENT */}
-
-        <BookAppointmentButton />
 
         {/* AI HEALTHCARE CONCIERGE */}
 
-        <ChatBox />
+        <ChatBox key={user?._id || "guest"} />
 
       </div>
 

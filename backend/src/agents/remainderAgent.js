@@ -1,118 +1,185 @@
 const Appointment =
   require("../models/Appointment");
 
-const sendEmail =
-  require("../services/emailService");
+const Notification =
+  require("../models/Notification");
+
+const askLLM =
+  require("../services/ollamaService");
 
 async function reminderAgent() {
 
-  console.log("====================");
-  console.log("Reminder Agent Running...");
+  try {
 
-  const appointments =
-    await Appointment.find({
+    console.log("Checking reminders...");
 
-      status: "BOOKED"
+    const appointments =
+      await Appointment.find({
 
-    });
+        reminderSent: false,
 
-  console.log(
-    "Appointments Found:",
-    appointments.length
-  );
+        status: {
+          $in: [
+            "BOOKED",
+            "RESCHEDULED"
+          ]
+        }
 
-  const now =
-    new Date();
+      });
 
-  const reminderTime =
+    console.log(
+      "Appointments Found:",
+      appointments.length
+    );
 
-    process.env.TEST_MODE === "true"
+    for (const appointment of appointments) {
 
-      ? new Date(
-          now.getTime() +
-          60 * 60 * 1000
-        )
+      try {
 
-      : new Date(
-          now.getTime() +
-          24 * 60 * 60 * 1000
+        // Prevent duplicate reminders
+        appointment.reminderSent = true;
+        appointment.reminderCount += 1;
+
+        await appointment.save();
+
+        const existingNotification =
+          await Notification.findOne({
+
+            appointmentId:
+              appointment._id,
+
+            type:
+              "REMINDER"
+
+          });
+
+        if (existingNotification) {
+          continue;
+        }
+
+        let reminderMessage;
+
+        try {
+
+          const prompt = `
+
+You are a Healthcare Reminder Assistant.
+
+Patient:
+${appointment.patientName}
+
+Doctor:
+${appointment.doctorName}
+
+Appointment:
+${appointment.appointmentSlot}
+
+Generate a short professional reminder.
+
+Mention:
+- Doctor name
+- Appointment time
+- Confirm option only.
+
+Return ONLY the reminder message.
+
+`;
+
+          reminderMessage =
+            await askLLM(prompt);
+
+        }
+
+        catch (error) {
+
+          console.log(
+            "LLM TIMEOUT - USING TEMPLATE"
+          );
+
+          reminderMessage = `Hello ${appointment.patientName},
+
+This is a reminder for your appointment with ${appointment.doctorName}.
+
+Appointment Time:
+${appointment.appointmentSlot}
+
+Please confirm your appointment.
+
+✓ CONFIRM`;
+
+        }
+
+        console.log(
+          "Notification Collection:",
+          Notification.collection.name
         );
 
-  for (
-    const appointment of appointments
-  ) {
+        console.log(
+          "Notification DB:",
+          Notification.db.name
+        );
 
-    const appointmentDate =
+        await Notification.create({
 
-      new Date(
-        appointment.appointmentDateTime
-      );
+          patientId:
+            appointment.patientId,
 
-    if (
+          appointmentId:
+            appointment._id,
 
-      appointmentDate > now &&
+          title:
+            "Appointment Reminder",
 
-      appointmentDate <= reminderTime
+          message:
+            reminderMessage,
 
-    ) {
+          type:
+            "REMINDER",
 
-      console.log(
-        "Sending reminder to:",
-        appointment.patientName
-      );
+          actions: [
+            "CONFIRM"
+          ],
 
-      const html = `
+          read: false,
 
-      <h2>Appointment Reminder</h2>
+          actionTaken: null
 
-      <p>
-      Hello ${appointment.patientName},
-      </p>
+        });
 
-      <p>
-      Your appointment with
-      <b>${appointment.doctorName}</b>
-      is scheduled for
-      <b>${appointment.appointmentSlot}</b>
-      </p>
+        console.log(
+          `Reminder created for ${appointment.patientName}`
+        );
 
-      <br>
+      }
 
-      <a href="http://localhost:5000/api/reminder/confirm/${appointment._id}">
-      <button>Confirm Appointment</button>
-      </a>
+      catch (error) {
 
-      <br><br>
+        console.log(
+          `Failed for appointment ${appointment._id}`
+        );
 
-      <a href="http://localhost:5000/api/reminder/cancel/${appointment._id}">
-      <button>Cancel Appointment</button>
-      </a>
+        console.log(error);
 
-      `;
-
-      await sendEmail(
-
-        "23b149@psgitech.ac.in",
-
-        "Appointment Reminder",
-
-        html
-
-      );
-
-      console.log(
-        "Reminder Sent"
-      );
+      }
 
     }
 
+    console.log(
+      "Reminder Check Completed"
+    );
+
   }
 
-  console.log(
-    "Reminder Check Completed"
-  );
+  catch (error) {
+
+    console.log(
+      "REMINDER AGENT ERROR:"
+    );
+
+    console.log(error);
+
+  }
 
 }
 
-module.exports =
-  reminderAgent;
+module.exports = reminderAgent;

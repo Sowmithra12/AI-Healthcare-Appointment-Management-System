@@ -1,5 +1,5 @@
-const mongoose = require("mongoose");
-
+const mongoose =
+  require("mongoose");
 const appointmentSchema =
   new mongoose.Schema(
     {
@@ -39,6 +39,11 @@ const appointmentSchema =
         required: true,
       },
 
+      appointmentDate: {
+        type: Date,
+        required: true,
+      },
+
       status: {
         type: String,
         enum: [
@@ -50,17 +55,29 @@ const appointmentSchema =
         ],
         default: "BOOKED",
       },
-      appointmentDateTime: {
-  type: Date,
-  required: true
-},
+
+      reminderSent: {
+        type: Boolean,
+        default: false,
+      },
+
+      reminderCount: {
+        type: Number,
+        default: 0,
+      },
+
+      confirmed: {
+        type: Boolean,
+        default: false,
+      },
+
     },
     {
       timestamps: true,
     }
   );
 
-module.exports =
+  module.exports =
   mongoose.model(
     "Appointment",
     appointmentSchema

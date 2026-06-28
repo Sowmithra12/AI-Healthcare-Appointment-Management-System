@@ -1,25 +1,36 @@
-const ollama =
-  require("ollama").default;
+const { Ollama } =
+  require("ollama");
 
-async function askLLM(
-  prompt
-) {
+const ollama =
+  new Ollama({
+    host:
+      "http://127.0.0.1:11434"
+  });
+
+async function askLLM(prompt) {
 
   const response =
     await ollama.chat({
-      model: "qwen3:4b",
+
+      model:
+        "qwen3:4b",
 
       messages: [
-  {
-    role: "system",
-    content:
-      "You are a healthcare booking assistant. Always return valid JSON only when extracting information."
-  },
-  {
-    role: "user",
-    content: prompt
-  }
-]
+
+        {
+          role: "system",
+          content:
+            "You are a healthcare assistant. Return JSON only."
+        },
+
+        {
+          role: "user",
+          content:
+            prompt
+        }
+
+      ]
+
     });
 
   return response.message.content;

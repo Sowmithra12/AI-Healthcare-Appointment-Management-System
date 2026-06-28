@@ -33,6 +33,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    availabilityStatus: {
+
+    type: String,
+
+    enum: [
+
+        "AVAILABLE",
+
+        "ABSENT"
+
+    ],
+
+    default: "AVAILABLE"
+
+},
   },
   {
     timestamps: true,

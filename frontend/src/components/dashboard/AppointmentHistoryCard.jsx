@@ -76,7 +76,7 @@ function AppointmentHistoryCard() {
 
       ) : (
 
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
 
           {history.map(
             (

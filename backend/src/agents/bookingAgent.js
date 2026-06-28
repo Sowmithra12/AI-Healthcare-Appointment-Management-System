@@ -1,3 +1,6 @@
+const askLLM =
+  require("../services/ollamaService");
+
 const getDoctorsTool =
   require("../tools/getDoctorsTool");
 
@@ -7,172 +10,480 @@ const getSlotsTool =
 const createAppointmentTool =
   require("../tools/createAppointmentTool");
 
+const Appointment =
+require("../models/Appointment");
+
+const User = require("../models/User");
 async function bookingAgent(
   message,
   state,
   patient
 ) {
 
-  // STEP 1
+  try {
 
-  if (!state.specialization) {
+    // =====================
+    // STEP 1
+    // GET SPECIALIZATION
+    // =====================
 
-    const specializations = [
+    if (!state.specialization) {
 
-      "Cardiologist",
+      const specializations = [
 
-      "Dermatologist",
+        "Cardiologist",
 
-      "Neurologist",
+        "Dermatologist",
 
-      "Orthopedic",
+        "Neurologist",
 
-      "Pediatrician"
+        "Orthopedic",
 
-    ];
+        "Pediatrician"
 
-    const selected =
-      specializations.find(
-        spec =>
-          spec.toLowerCase() ===
-          message.toLowerCase()
-      );
+      ];
 
-    if (!selected) {
+      // User selected specialization button
 
-      return {
+      const selectedSpecialization =
+        specializations.find(
 
-        action:
-          "ASK_SPECIALIZATION",
+          spec =>
 
-        specializations,
+            spec.toLowerCase() ===
+            message.toLowerCase()
 
-        reply:
-          "Please choose a specialization",
+        );
 
-        state
+      if (selectedSpecialization) {
 
-      };
+        state.specialization =
+          selectedSpecialization;
+
+      }
+
+      else {
+
+        const prompt = `
+
+You are an expert Healthcare Booking Agent.
+
+Your job is to identify the medical specialization required by the patient.
+
+Available Specializations:
+
+- Cardiologist
+- Dermatologist
+- Neurologist
+- Orthopedic
+- Pediatrician
+
+Patient Message:
+
+"${message}"
+
+Return ONLY valid JSON.
+
+Example:
+
+{
+  "specialization":"Cardiologist"
+}
+
+If unsure:
+
+{
+  "specialization":""
+}
+
+`;
+
+        const response =
+          await askLLM(prompt);
+
+        console.log(
+          "LLM RESPONSE:",
+          response
+        );
+
+        const cleaned =
+          response
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+
+        const result =
+          JSON.parse(cleaned);
+
+        const validSpecializations = [
+
+          "Cardiologist",
+
+          "Dermatologist",
+
+          "Neurologist",
+
+          "Orthopedic",
+
+          "Pediatrician"
+
+        ];
+
+        if (
+
+          !result.specialization ||
+
+          !validSpecializations.includes(
+            result.specialization
+          )
+
+        ) {
+
+          return {
+
+            action:
+              "ASK_SPECIALIZATION",
+
+            specializations,
+
+            reply:
+              "What type of doctor would you like to consult?",
+
+            state
+
+          };
+
+        }
+
+        state.specialization =
+          result.specialization;
+
+      }
 
     }
 
-    state.specialization =
-      selected;
+    // =====================
+    // STEP 2
+    // SELECT DOCTOR
+    // =====================
 
-  }
+    if (!state.doctorName) {
 
-  // STEP 2
+      const doctors =
+        await getDoctorsTool(
+          state.specialization
+        );
 
-  if (!state.doctorName) {
+      const selectedDoctor =
+        doctors.find(
 
-    const doctors =
-      await getDoctorsTool(
-        state.specialization
-      );
+          doctor =>
 
-    const selectedDoctor =
-      doctors.find(
-        doctor =>
-          doctor.name ===
-          message
-      );
+            doctor.name ===
+            message
 
-    if (!selectedDoctor) {
+        );
 
-      return {
+      if (!selectedDoctor) {
+
+        return {
+
+          action:
+            "SHOW_DOCTORS",
+
+          doctors,
+
+          reply:
+            "Please select a doctor.",
+
+          state
+
+        };
+
+      }
+
+      state.doctorName =
+        selectedDoctor.name;
+
+      // =========================
+// CHECK DOCTOR AVAILABILITY
+// =========================
+
+const doctor = await User.findOne({
+
+    name: state.doctorName,
+
+    role: "doctor"
+
+});
+
+if (
+
+    doctor &&
+    doctor.availabilityStatus === "ABSENT"
+
+) {
+
+    // Reset selected doctor
+    delete state.doctorName;
+
+    return {
 
         action:
-          "SHOW_DOCTORS",
+        "DOCTOR_UNAVAILABLE",
 
+        reply:
+        `${doctor.name} is currently unavailable because the doctor is absent. Please choose another doctor.`,
+
+        doctors:
         doctors,
 
         state
 
-      };
+    };
+
+}
 
     }
 
-    state.doctorName =
-      selectedDoctor.name;
+    // =====================
+    // STEP 3
+    // SELECT SLOT
+    // =====================
 
-  }
+// STEP 3
+const slots =
+    await getSlotsTool(state.doctorName);
 
-  // STEP 3
+// Check whether the current message is one of the slot labels
+const selectedSlot =
+    slots.find(
 
-  if (!state.appointmentSlot) {
-
-    const slots =
-      await getSlotsTool(
-        state.doctorName
-      );
-
-    const selectedSlot =
-      slots.find(
         slot =>
-          slot === message
-      );
 
-    if (!selectedSlot) {
+        slot.label === message
 
-      return {
+    );
 
-        action:
-          "SHOW_SLOTS",
+// If the user clicked a slot,
+// ALWAYS overwrite the previous slot.
+if(selectedSlot){
 
-        slots,
+    state.appointmentSlot =
+        selectedSlot.label;
+
+    state.appointmentDate =
+        new Date(selectedSlot.date);
+
+}
+
+if(!state.appointmentSlot){
+
+    return{
+
+        action:"SHOW_SLOTS",
+
+        slots:
+        slots.map(
+
+            slot=>slot.label
+
+        ),
+
+        reply:
+        "Please select a slot.",
 
         state
 
-      };
+    };
 
+}
+
+    if (
+      state.appointmentSlot &&
+      !state.appointmentDate
+    ) {
+      const slots =
+        await getSlotsTool(
+          state.doctorName
+        );
+
+      const selectedSlot =
+        slots.find(
+          slot =>
+            slot.label ===
+            state.appointmentSlot
+        );
+
+      if (!selectedSlot) {
+        return {
+          action:
+            "SHOW_SLOTS",
+          slots:
+            slots.map(
+              slot => slot.label
+            ),
+          reply:
+            "Please select a slot.",
+          state
+        };
+      }
+
+      state.appointmentDate =
+        new Date(
+          selectedSlot.date
+        );
     }
 
-    state.appointmentSlot =
-      selectedSlot;
+    // =====================
+    // STEP 4
+    // BOOK APPOINTMENT
+    // =====================
+
+    const appointment =
+      await createAppointmentTool({
+
+        patientId:
+          patient._id,
+
+        patientName:
+          patient.name,
+
+        phoneNumber:
+          patient.phone,
+
+        age:
+          patient.age || 0,
+
+        specialization:
+          state.specialization,
+
+        doctorName:
+          state.doctorName,
+
+        appointmentSlot:
+          state.appointmentSlot,
+
+        appointmentDate:
+  state.appointmentDate,
+
+        status:
+          "BOOKED"
+
+      });
+      console.log("TOOL RETURNED:");
+console.log(appointment);
+
+    return {
+
+      action:
+        "BOOKED",
+
+      appointment,
+
+      reply:
+        `Appointment booked successfully with ${appointment.doctorName}`,
+
+      state: {}
+
+    };
 
   }
 
-  // STEP 4
+ catch (error) {
 
-  const appointment =
-    await createAppointmentTool({
+    console.log("BOOKING AGENT ERROR:");
+    console.log(error);
 
-      patientId:
-        patient._id,
+    if (
 
-      patientName:
-        patient.name,
+        error.message ===
+        "SLOT_ALREADY_BOOKED"
 
-      phoneNumber:
-        patient.phone,
+    ) {
 
-      age:
-        patient.age || 0,
+        // Get all slots again
+        const slots =
+        await getSlotsTool(
 
-      specialization:
-        state.specialization,
+            state.doctorName
 
-      doctorName:
-        state.doctorName,
+        );
 
-      appointmentSlot:
-        state.appointmentSlot,
+        // Find already booked appointments
+        const bookedAppointments =
+        await Appointment.find({
 
-      status:
-        "BOOKED"
+            doctorName:
+            state.doctorName,
 
-    });
+            status: {
 
-  return {
+                $in: [
 
-    action:
-      "BOOKED",
+                    "BOOKED",
+                    "CONFIRMED",
+                    "RESCHEDULED"
 
-    appointment,
+                ]
 
-    state
+            }
 
-  };
+        });
+
+        // Remove booked slots
+        const availableSlots =
+        slots.filter(slot =>
+
+            !bookedAppointments.some(
+
+                appointment =>
+
+                    appointment.appointmentDate.getTime() ===
+                    new Date(slot.date).getTime()
+
+            )
+
+        );
+
+        // Remove old selection
+        delete state.appointmentSlot;
+        delete state.appointmentDate;
+
+        return {
+
+            action:
+            "SLOT_ALREADY_BOOKED",
+
+            reply:
+            "Sorry, that appointment slot has just been booked by another patient. Please choose another available slot.",
+
+            slots:
+            availableSlots.map(
+
+                slot => slot.label
+
+            ),
+
+            state
+
+        };
+
+    }
+
+    return {
+
+        action:
+        "ERROR",
+
+        reply:
+        "Something went wrong while booking.",
+
+        state
+
+    };
+
+}
 
 }
 

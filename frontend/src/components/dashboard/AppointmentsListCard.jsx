@@ -14,11 +14,36 @@ function AppointmentsListCard() {
     setLoading] =
       useState(true);
 
-  useEffect(() => {
+useEffect(() => {
 
-    fetchAppointments();
+  fetchAppointments();
 
-  }, []);
+  const refreshAppointments =
+    () => {
+
+      console.log(
+        "Refreshing appointments..."
+      );
+
+      fetchAppointments();
+
+    };
+
+  window.addEventListener(
+    "appointmentUpdated",
+    refreshAppointments
+  );
+
+  return () => {
+
+    window.removeEventListener(
+      "appointmentUpdated",
+      refreshAppointments
+    );
+
+  };
+
+}, []);
 
   const fetchAppointments =
     async () => {
@@ -101,7 +126,7 @@ setAppointments(
 
       ) : (
 
-        <div className="space-y-4">
+        <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2">
 
           {appointments.map(
             (appointment) => (

@@ -1,86 +1,191 @@
-const slots = {
+function getSlots(doctorName) {
 
-  // Cardiologists
+  const slots = [];
 
-  "Dr. Rajesh Kumar": [
-    "Mon, 15 Jun 2026 - 10:00 AM",
-    "Mon, 15 Jun 2026 - 11:00 AM",
-    "Tue, 16 Jun 2026 - 02:00 PM",
-  ],
+  const today = new Date();
 
-  "Dr. Anitha Menon": [
-    "Mon, 15 Jun 2026 - 09:30 AM",
-    "Wed, 17 Jun 2026 - 11:30 AM",
-    "Thu, 18 Jun 2026 - 04:00 PM",
-  ],
+  const doctorSchedule = {
 
-  // Dermatologists
+    // Cardiologists
 
-  "Dr. Priya Sharma": [
-    "Thu, 18 Jun 2026 - 10:30 AM",
-    "Thu, 18 Jun 2026 - 03:00 PM",
-    "Fri, 19 Jun 2026 - 05:00 PM",
-  ],
+    "Dr. Rajesh Kumar": {
+      days: [1, 3, 5], // Mon Wed Fri
+      times: [
+        "10:00 AM",
+        "11:00 AM"
+      ]
+    },
 
-  "Dr. Kavya Reddy": [
-    "Tue, 16 Jun 2026 - 10:00 AM",
-    "Wed, 17 Jun 2026 - 01:00 PM",
-    "Fri, 19 Jun 2026 - 03:30 PM",
-  ],
+    "Dr. Anitha Menon": {
+      days: [2, 4, 6], // Tue Thu Sat
+      times: [
+        "02:00 PM",
+        "04:00 PM"
+      ]
+    },
 
-  // Neurologists
+    // Dermatologists
 
-  "Dr. Arjun Nair": [
-    "Mon, 15 Jun 2026 - 12:00 PM",
-    "Wed, 17 Jun 2026 - 02:30 PM",
-    "Thu, 18 Jun 2026 - 04:30 PM",
-  ],
+    "Dr. Priya Sharma": {
+      days: [1, 3, 5],
+      times: [
+        "10:30 AM",
+        "03:00 PM"
+      ]
+    },
 
-  "Dr. Meera Iyer": [
-    "Tue, 16 Jun 2026 - 11:00 AM",
-    "Thu, 18 Jun 2026 - 01:00 PM",
-    "Fri, 19 Jun 2026 - 04:00 PM",
-  ],
+    "Dr. Kavya Reddy": {
+      days: [2, 4, 6],
+      times: [
+        "01:00 PM",
+        "05:00 PM"
+      ]
+    },
 
-  // Orthopedic Specialists
+    // Neurologists
 
-  "Dr. Vikram Singh": [
-    "Mon, 15 Jun 2026 - 09:00 AM",
-    "Wed, 17 Jun 2026 - 12:00 PM",
-    "Fri, 19 Jun 2026 - 03:00 PM",
-  ],
+    "Dr. Arjun Nair": {
+      days: [1, 4],
+      times: [
+        "11:00 AM",
+        "02:30 PM"
+      ]
+    },
 
-  "Dr. Sanjay Patel": [
-    "Tue, 16 Jun 2026 - 10:30 AM",
-    "Thu, 18 Jun 2026 - 02:30 PM",
-    "Fri, 19 Jun 2026 - 05:30 PM",
-  ],
+    "Dr. Meera Iyer": {
+      days: [2, 5],
+      times: [
+        "10:00 AM",
+        "04:00 PM"
+      ]
+    },
 
-  // Pediatricians
+    // Orthopedic
 
-  "Dr. Lakshmi Devi": [
-    "Mon, 15 Jun 2026 - 11:00 AM",
-    "Tue, 16 Jun 2026 - 03:00 PM",
-    "Thu, 18 Jun 2026 - 05:00 PM",
-  ],
+    "Dr. Vikram Singh": {
+      days: [1, 3, 5],
+      times: [
+        "09:00 AM",
+        "12:00 PM"
+      ]
+    },
 
-  "Dr. Rohit Verma": [
-    "Wed, 17 Jun 2026 - 10:00 AM",
-    "Thu, 18 Jun 2026 - 12:30 PM",
-    "Fri, 19 Jun 2026 - 02:00 PM",
-  ],
+    "Dr. Sanjay Patel": {
+      days: [2, 4, 6],
+      times: [
+        "10:30 AM",
+        "03:30 PM"
+      ]
+    },
 
-};
+    // Pediatricians
 
-function getSlots(
-  doctorName
-) {
+    "Dr. Lakshmi Devi": {
+      days: [1, 4],
+      times: [
+        "11:00 AM",
+        "05:00 PM"
+      ]
+    },
 
-  return (
-    slots[
-      doctorName
-    ] || []
+    "Dr. Rohit Verma": {
+      days: [2, 5],
+      times: [
+        "10:00 AM",
+        "02:00 PM"
+      ]
+    }
+
+  };
+
+  const doctor =
+    doctorSchedule[doctorName];
+
+  if (!doctor)
+    return [];
+
+  for (
+    let i = 1;
+    i <= 7;
+    i++
+  ) {
+
+    const date =
+      new Date(today);
+
+    date.setDate(
+      today.getDate() + i
+    );
+
+    const day =
+      date.getDay();
+
+    if (
+      doctor.days.includes(day)
+    ) {
+
+      const formattedDate =
+        date.toLocaleDateString(
+          "en-IN",
+          {
+            weekday: "short",
+            day: "2-digit",
+            month: "short",
+            year: "numeric"
+          }
+        );
+
+      doctor.times.forEach(time => {
+
+  const [timePart, period] =
+    time.split(" ");
+
+  let [hours, minutes] =
+    timePart.split(":");
+
+  hours = Number(hours);
+
+  if (
+    period === "PM" &&
+    hours !== 12
+  ) {
+    hours += 12;
+  }
+
+  if (
+    period === "AM" &&
+    hours === 12
+  ) {
+    hours = 0;
+  }
+
+  const slotDate =
+    new Date(date);
+
+  slotDate.setHours(
+    hours,
+    Number(minutes),
+    0,
+    0
   );
+
+  slots.push({
+
+    label:
+      `${formattedDate} - ${time}`,
+
+    date:
+      slotDate
+
+  });
+
+});
+
+    }
+
+  }
+
+  return slots;
 
 }
 

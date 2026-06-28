@@ -5,21 +5,18 @@ async function getPatientAppointmentsTool(
   patientId
 ) {
 
-  const appointments =
-    await Appointment.find({
+  return Appointment.find({
 
-      patientId,
+    patientId,
 
-      status: {
-        $in: [
-          "BOOKED",
-          "RESCHEDULED"
-        ]
-      }
+    status: {
+      $in: [
+        "BOOKED",
+        "RESCHEDULED"
+      ]
+    }
 
-    });
-
-  return appointments;
+  });
 
 }
 

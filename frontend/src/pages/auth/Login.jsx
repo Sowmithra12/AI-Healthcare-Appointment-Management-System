@@ -29,6 +29,7 @@ function Login() {
       const response = await loginUser({
         email,
         password,
+        role,
       });
 
       localStorage.setItem(

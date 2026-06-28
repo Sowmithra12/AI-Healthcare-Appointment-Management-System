@@ -1,27 +1,130 @@
-import { useState } from "react";
+import axios from "axios";
+import {
+  useState,
+  useEffect
+} from "react";
 import {
   sendAgentMessage
 }
 from "../../api/agentApi";
 
 function ChatBox() {
-  const [message, setMessage] = useState("");
-  const [
-  bookingState,
-  setBookingState
-] =
-useState({});
-
-  const [messages, setMessages] = useState([
-    {
-      sender: "ai",
-      text:
-        "👋 Welcome to AI Healthcare Concierge.\n\nI can help you with:\n• Rescheduling\n• Cancellation\n• Queue Information\n• Doctor Recommendations",
-    },
-  ]);
+  const [messages, setMessages] = useState([]);
 
   const [loading, setLoading] =
     useState(false);
+  
+  const [message, setMessage] = useState("");
+
+  const [bookingState, setBookingState] =
+useState(() => {
+
+    const saved =
+        localStorage.getItem(
+            "bookingState"
+        );
+
+    return saved
+        ? JSON.parse(saved)
+        : {};
+
+});
+
+useEffect(() => {
+
+    localStorage.setItem(
+
+        "bookingState",
+
+        JSON.stringify(
+            bookingState
+        )
+
+    );
+
+}, [bookingState]);
+
+    const getTime = () =>
+  new Date().toLocaleString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }
+  );
+
+  const loadConversation = async () => {
+
+  try {
+
+    const user =
+      JSON.parse(
+        localStorage.getItem("user")
+      );
+
+    const response =
+      await axios.get(
+
+        `http://localhost:5000/api/chat/${user._id}`
+
+      );
+
+    if (
+      response.data.messages.length > 0
+    ) {
+
+      setMessages(
+        response.data.messages
+      );
+
+    }
+
+    else {
+
+      setMessages([
+
+        {
+
+          sender: "ai",
+
+          text:
+            "👋 Welcome to AI Healthcare Concierge.\n\nI can help you with:\n• Appointment Booking\n• Rescheduling\n• Cancellation\n• Queue Information\n• Doctor Recommendations",
+
+          timestamp:
+            getTime()
+
+        }
+
+      ]);
+
+    }
+
+  }
+
+  catch (error) {
+
+    console.log(error);
+
+  }
+
+};
+
+useEffect(() => {
+
+    loadConversation();
+
+}, []);
+
+useEffect(() => {
+
+    localStorage.setItem(
+      "bookingState",
+      JSON.stringify(bookingState)
+    );
+
+  }, [bookingState])
 
   const handleSend =
   async () => {
@@ -36,10 +139,12 @@ useState({});
         )
       );
 
-    const userMessage = {
-      sender: "user",
-      text: message,
-    };
+   const userMessage = {
+  sender: "user",
+  text: message,
+  timestamp:
+    getTime()
+};
 
     setMessages(prev => [
       ...prev,
@@ -50,6 +155,10 @@ useState({});
 
     try {
 
+      console.log(
+  "BOOKING STATE BEFORE SEND:",
+  bookingState
+);
       const result =
         await sendAgentMessage(
           message,
@@ -81,7 +190,9 @@ if (
       actions: [
         "RESCHEDULE",
         "CANCEL"
-      ]
+      ],
+       timestamp:
+    getTime()
 
     }
 
@@ -103,6 +214,8 @@ if (
 
       specializations:
         result.specializations,
+       timestamp:
+    getTime()
     },
   ]);
 
@@ -124,7 +237,9 @@ else if (
         "Select Appointment",
 
       appointments:
-        result.appointments
+        result.appointments,
+       timestamp:
+    getTime()
 
     }
 
@@ -152,7 +267,9 @@ else if (
         result.slots,
 
       isReschedule:
-        true
+        true,
+         timestamp:
+    getTime()
 
     }
 
@@ -174,13 +291,18 @@ else if (
       sender: "ai",
 
       text:
-        result.reply
+        result.reply,
+       timestamp:
+    getTime()
 
     }
 
   ]);
 
-  window.location.reload();
+  setBookingState({});
+  localStorage.removeItem(
+  "bookingState"
+);
 
 }
 
@@ -197,10 +319,41 @@ else if (
               "Available Doctors",
             doctors:
               result.doctors,
+             timestamp:
+    getTime()
           },
         ]);
 
       }
+      else if (
+
+    result.action ===
+    "DOCTOR_UNAVAILABLE"
+
+){
+
+    setMessages(prev => [
+
+        ...prev,
+
+        {
+
+            sender:"ai",
+
+            text:
+            result.reply,
+
+            doctors:
+            result.doctors,
+
+            timestamp:
+            getTime()
+
+        }
+
+    ]);
+
+}
 
       else if (
         result.action ===
@@ -215,10 +368,38 @@ else if (
               "Available Slots",
             slots:
               result.slots,
+             timestamp:
+    getTime()
           },
         ]);
 
       }
+      else if (
+
+    result.action ===
+    "SLOT_ALREADY_BOOKED"
+
+) {
+
+    setMessages(prev => [
+
+        ...prev,
+
+        {
+
+            sender: "ai",
+
+            text: result.reply,
+
+            slots: result.slots,
+
+            timestamp: getTime()
+
+        }
+
+    ]);
+
+}
 
       else if (
 
@@ -239,7 +420,9 @@ else if (
         "Select Appointment To Cancel",
 
       cancelAppointments:
-        result.appointments
+        result.appointments,
+       timestamp:
+    getTime()
 
     }
 
@@ -266,7 +449,9 @@ else if (
         "Are you sure?",
 
       confirmations:
-        ["YES","NO"]
+        ["YES","NO"],
+       timestamp:
+    getTime()
 
     }
 
@@ -290,7 +475,52 @@ else if (
       sender:"ai",
 
       text:
-        result.reply
+        result.reply,
+       timestamp:
+    getTime()
+
+    }
+
+  ]);
+
+}
+else if (
+  result.action === "NO_QUEUE"
+) {
+
+  setMessages(prev => [
+
+    ...prev,
+
+    {
+
+      sender: "ai",
+
+      text: result.reply,
+
+      timestamp: getTime()
+
+    }
+
+  ]);
+
+}
+
+else if (
+  result.action === "ERROR"
+) {
+
+  setMessages(prev => [
+
+    ...prev,
+
+    {
+
+      sender: "ai",
+
+      text: result.reply,
+
+      timestamp: getTime()
 
     }
 
@@ -314,10 +544,12 @@ else if (
       sender: "ai",
 
       text:
-        `Recommended Specialization: ${result.specialization}`,
+        `Recommended Specialization: ${result.specialization || "Unknown"}`,
 
       doctors:
-        result.doctors
+        result.doctors,
+       timestamp:
+    getTime()
 
     }
 
@@ -342,7 +574,9 @@ if (
         "Which appointment are you asking about?",
 
       queueAppointments:
-        result.appointments
+        result.appointments,
+       timestamp:
+    getTime()
 
     }
 
@@ -366,13 +600,18 @@ else if (
       sender:"ai",
 
       text:
-        result.reply
+        result.reply,
+       timestamp:
+    getTime()
 
     }
 
   ]);
 
-  window.location.reload();
+  setBookingState({});
+  localStorage.removeItem(
+  "bookingState"
+);
 
 }
 
@@ -387,10 +626,19 @@ else if (
             sender:"ai",
             text:
               "✅ Appointment Booked Successfully",
+             timestamp:
+    getTime()
           },
         ]);
 
-        window.location.reload();
+       setBookingState({});
+  localStorage.removeItem(
+  "bookingState"
+);
+
+  window.dispatchEvent(
+    new Event("appointmentUpdated")
+  );
 
       }
 
@@ -409,12 +657,22 @@ else if (
   const handleAppointmentSelect =
 async (appointmentId) => {
 
+  console.log(
+    "SELECTED APPOINTMENT ID:",
+    appointmentId
+  );
+
   const user =
     JSON.parse(
       localStorage.getItem(
         "user"
       )
     );
+
+  console.log(
+    "CURRENT BOOKING STATE:",
+    bookingState
+  );
 
   const result =
     await sendAgentMessage(
@@ -426,6 +684,11 @@ async (appointmentId) => {
       user._id
 
     );
+
+  console.log(
+    "APPOINTMENT SELECT RESPONSE:",
+    result
+  );
 
   if (result.state) {
 
@@ -443,6 +706,7 @@ async (appointmentId) => {
       sender: "user",
       text:
         "Selected Appointment",
+        timestamp: getTime()
     },
 
     {
@@ -460,11 +724,15 @@ async (appointmentId) => {
   ]);
 
 };
-
 const handleCancelAppointment =
 async (
   appointmentId
 ) => {
+
+  console.log(
+  "SELECTED CANCEL APPOINTMENT:",
+  appointmentId
+);
 
   const user =
     JSON.parse(
@@ -503,7 +771,8 @@ async (
       sender: "user",
 
       text:
-        "Selected Appointment"
+        "Selected Appointment",
+        timestamp: getTime()
 
     },
 
@@ -522,34 +791,6 @@ async (
   ]);
 
 };
-  const handleSlotSelect =
-    async (doctor, slot) => {
-      try {
-        const appointment =
-          JSON.parse(
-            localStorage.getItem(
-              "currentAppointment"
-            )
-          );
-
-        const response =
-          await rescheduleAppointment(
-            appointment._id,
-            doctor,
-            slot
-          );
-
-        alert(response.message);
-
-        window.location.reload();
-      } catch (error) {
-        console.log(error);
-
-        alert(
-          "Failed to reschedule appointment"
-        );
-      }
-    };
 
   return (
     <div className="bg-white rounded-3xl shadow-xl overflow-hidden">
@@ -649,9 +890,21 @@ async (
       }`}
     >
 
-      <p className="whitespace-pre-line">
-        {msg.text}
-      </p>
+<p className="whitespace-pre-line">
+  {msg.text}
+</p>
+
+{
+  msg.timestamp && (
+
+    <p className="text-xs mt-2 opacity-60 text-right">
+
+      {msg.timestamp}
+
+    </p>
+
+  )
+}
       {
   msg.actions && (
 
@@ -660,27 +913,27 @@ async (
       {msg.actions.map(
         (action, index) => (
 
-          <button
-            key={index}
-            onClick={() => {
+<button
+  key={index}
+  onClick={() => {
 
-  setMessage(action);
+    setMessage(action);
 
-  setTimeout(() => {
+    setTimeout(() => {
 
-    document
-      .getElementById(
-        "agent-send-btn"
-      )
-      ?.click();
+      document
+        .getElementById(
+          "agent-send-btn"
+        )
+        ?.click();
 
-  }, 100);
+    }, 100);
 
-}}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg"
-          >
-            {action}
-          </button>
+  }}
+  className="bg-blue-600 text-white px-4 py-2 rounded-lg"
+>
+  {action}
+</button>
 
         )
       )}
@@ -773,44 +1026,77 @@ async (
 
         )}
 
-      {/* DOCTORS */}
+{/* DOCTORS */}
 
-      {msg.doctors &&
-        msg.doctors.length > 0 && (
+{msg.doctors &&
+  msg.doctors.length > 0 && (
 
-          <div className="mt-4 space-y-2">
+    <div className="mt-4 space-y-2">
 
-            {msg.doctors.map(
-              (doctor) => (
+      {msg.doctors.map((doctor) => (
 
-                <button
-                  key={doctor._id}
-                  onClick={() => {
+        <button
+          key={doctor._id}
+          disabled={
+            doctor.availabilityStatus === "ABSENT"
+          }
+          onClick={() => {
 
-                    setMessage(
-                      doctor.name
-                    );
+            setMessage(
+              doctor.name
+            );
 
-                    setTimeout(() => {
-                      document
-                        .getElementById(
-                          "agent-send-btn"
-                        )
-                        ?.click();
-                    }, 100);
+            setTimeout(() => {
 
-                  }}
-                  className="block w-full text-left bg-green-100 p-3 rounded-lg hover:bg-green-200"
-                >
-                  {doctor.name}
-                </button>
+              document
+                .getElementById(
+                  "agent-send-btn"
+                )
+                ?.click();
 
-              )
-            )}
+            }, 100);
+
+          }}
+          className={`block w-full text-left p-3 rounded-lg border transition
+
+            ${
+              doctor.availabilityStatus === "ABSENT"
+                ? "bg-gray-100 border-gray-300 cursor-not-allowed opacity-70"
+                : "bg-green-100 hover:bg-green-200 border-green-200"
+            }
+
+          `}
+        >
+
+          <div className="font-semibold">
+
+            {doctor.name}
 
           </div>
 
-        )}
+          <div className="text-sm text-gray-600">
+
+            {doctor.specialization}
+
+          </div>
+
+          {doctor.availabilityStatus === "ABSENT" && (
+
+            <div className="mt-1 text-sm font-medium text-red-600">
+
+              🚫 Doctor currently unavailable
+
+            </div>
+
+          )}
+
+        </button>
+
+      ))}
+
+    </div>
+
+)}
 
         {
   msg.cancelAppointments && (
@@ -867,7 +1153,7 @@ async (
             className="border rounded-xl p-4"
           >
 
-            <h3>
+            <h3 className="font-semibold">
               {appointment.doctorName}
             </h3>
 
@@ -875,33 +1161,33 @@ async (
               {appointment.appointmentSlot}
             </p>
 
-            <button
+           <button
 
-              onClick={() => {
+  onClick={() => {
 
-                setMessage(
-                  appointment._id
-                );
+    setMessage(
+      appointment._id
+    );
 
-                setTimeout(() => {
+    setTimeout(() => {
 
-                  document
-                    .getElementById(
-                      "agent-send-btn"
-                    )
-                    ?.click();
+      document
+        .getElementById(
+          "agent-send-btn"
+        )
+        ?.click();
 
-                }, 100);
+    }, 100);
 
-              }}
+  }}
 
-              className="bg-green-600 text-white px-4 py-2 rounded-lg mt-2"
+  className="bg-green-600 text-white px-4 py-2 rounded-lg mt-2"
 
-            >
+>
 
-              Select
+  Select
 
-            </button>
+</button>
 
           </div>
 
@@ -960,46 +1246,38 @@ async (
 
       {/* SLOTS */}
 
-      {msg.slots &&
-        msg.slots.length > 0 && (
+{msg.slots &&
+msg.slots.length > 0 && (
 
-          <div className="mt-4 space-y-2">
+<div className="mt-4 space-y-2">
 
-            {msg.slots.map(
-              (slot, index) => (
+{msg.slots.map((slot,index)=>{
+  const slotLabel =
+    typeof slot === "string"
+      ? slot
+      : slot.label;
 
-                <button
-                  key={index}
-                  onClick={() => {
+  return (
+    <button
+      key={index}
+      onClick={() => {
+        setMessage(slotLabel);
+        setTimeout(() => {
+          document
+            .getElementById("agent-send-btn")
+            ?.click();
+        }, 100);
+      }}
+      className="block w-full text-left bg-purple-100 p-3 rounded-lg hover:bg-purple-200"
+    >
+      {slotLabel}
+    </button>
+  );
+})}
 
-  if (
-    msg.reschedule
-  ) {
+</div>
 
-    handleRescheduleSlot(
-      slot
-    );
-
-  }
-
-  else {
-
-    setMessage(slot);
-
-  }
-
-}}
-                  className="block w-full text-left bg-purple-100 p-3 rounded-lg hover:bg-purple-200"
-                >
-                  {slot}
-                </button>
-
-              )
-            )}
-
-          </div>
-
-        )}
+)}
 
     </div>
 
