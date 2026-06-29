@@ -6,6 +6,82 @@ async function routerNode(state) {
     const message =
         (state.message || "").toLowerCase();
 
+    // =====================================
+// NEW INTENT OVERRIDE
+// =====================================
+
+if (
+
+    message.includes("book")
+
+    ||
+
+    message.includes("book appointment")
+
+    ||
+
+    message.includes("book an appointment")
+
+) {
+
+    console.log("→ NEW BOOKING REQUEST");
+
+    return {
+
+        ...state,
+
+        state: {},
+
+        next: "booking"
+
+    };
+
+}
+
+if(
+
+    message.includes("cancel")
+
+){
+
+    console.log("→ NEW CANCEL REQUEST");
+
+    return{
+
+        ...state,
+
+        state:{},
+
+        next:"cancel"
+
+    };
+
+}
+
+if(
+
+    message.includes("reschedule")
+
+    ||
+
+    message.includes("busy")
+
+){
+
+    console.log("→ NEW RESCHEDULE REQUEST");
+
+    return{
+
+        ...state,
+
+        state:{},
+
+        next:"reschedule"
+
+    };
+
+}
+
     // ==========================
     // CONFIRM FLOW
     // ==========================
