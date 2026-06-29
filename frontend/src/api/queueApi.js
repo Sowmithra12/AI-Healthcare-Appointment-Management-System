@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API =
-  "http://localhost:5000/api/queue";
+  `${import.meta.env.VITE_API_URL}/queue`;
 
 export const getQueue =
   async (

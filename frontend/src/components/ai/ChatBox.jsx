@@ -1,4 +1,6 @@
 import axios from "axios";
+const API =
+  import.meta.env.VITE_API_URL;
 import {
   useState,
   useEffect
@@ -65,11 +67,11 @@ useEffect(() => {
       );
 
     const response =
-      await axios.get(
+  await axios.get(
 
-        `http://localhost:5000/api/chat/${user._id}`
+    `${API}/chat/${user._id}`
 
-      );
+  );
 
     if (
       response.data.messages.length > 0

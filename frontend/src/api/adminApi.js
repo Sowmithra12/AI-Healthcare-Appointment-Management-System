@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API =
-    "http://localhost:5000/api/admin";
+    `${import.meta.env.VITE_API_URL}/admin`;
 
 export const getDoctors =
 async () => {

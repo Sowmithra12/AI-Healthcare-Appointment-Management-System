@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API =
-  "http://localhost:5000/api/agent";
+  `${import.meta.env.VITE_API_URL}/agent`;
 
 export const sendAgentMessage =
   async (

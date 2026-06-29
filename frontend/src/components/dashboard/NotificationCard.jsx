@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+const API =
+  import.meta.env.VITE_API_URL;
 import { sendAgentMessage } from "../../api/agentApi";
 
 function NotificationCard() {
@@ -24,11 +26,11 @@ function NotificationCard() {
       try {
 
         const response =
-          await axios.get(
+  await axios.get(
 
-            `http://localhost:5000/api/notifications/${user._id}`
+    `${API}/notifications/${user._id}`
 
-          );
+  );
 
         setNotifications(
           response.data
@@ -80,7 +82,7 @@ if (
 
 await axios.put(
 
-  `http://localhost:5000/api/notifications/${notification._id}`,
+  `${API}/notifications/${notification._id}`,
 
   {
 
