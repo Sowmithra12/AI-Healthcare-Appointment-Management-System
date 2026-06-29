@@ -6,21 +6,41 @@ async function routerNode(state) {
     const message =
         (state.message || "").toLowerCase();
 
-    // =====================================
+// =====================================
+// CONTINUE CURRENT FLOW
+// =====================================
+
+if (state.state?.flow) {
+
+    console.log("→ CONTINUING:", state.state.flow);
+
+    return {
+
+        ...state,
+
+        next: state.state.flow
+
+    };
+
+}
+
+// =====================================
 // NEW INTENT OVERRIDE
 // =====================================
 
+// Booking
+
 if (
 
-    message.includes("book")
+    message === "book"
 
     ||
 
-    message.includes("book appointment")
+    message === "book appointment"
 
     ||
 
-    message.includes("book an appointment")
+    message === "book an appointment"
 
 ) {
 
@@ -38,45 +58,61 @@ if (
 
 }
 
-if(
+// Cancel
 
-    message.includes("cancel")
+if (
 
-){
+    message === "cancel"
+
+    ||
+
+    message === "cancel appointment"
+
+) {
 
     console.log("→ NEW CANCEL REQUEST");
 
-    return{
+    return {
 
         ...state,
 
-        state:{},
+        state: {},
 
-        next:"cancel"
+        next: "cancel"
 
     };
 
 }
 
-if(
+// Reschedule
 
-    message.includes("reschedule")
+if (
+
+    message === "reschedule"
 
     ||
 
-    message.includes("busy")
+    message === "reschedule appointment"
 
-){
+    ||
+
+    message.includes("i am busy")
+
+    ||
+
+    message.includes("can't come")
+
+) {
 
     console.log("→ NEW RESCHEDULE REQUEST");
 
-    return{
+    return {
 
         ...state,
 
-        state:{},
+        state: {},
 
-        next:"reschedule"
+        next: "reschedule"
 
     };
 

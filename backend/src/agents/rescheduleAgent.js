@@ -122,7 +122,7 @@ or
 
 if (
   state.step === "ASK_ACTION" &&
-  message === "CANCEL"
+  message.toUpperCase() === "CANCEL"
 ) {
 
   const appointments =
@@ -160,7 +160,7 @@ if (
     if (
       state.step ===
         "ASK_ACTION" &&
-      message ===
+      message.toUpperCase() ===
         "RESCHEDULE"
     ) {
 
